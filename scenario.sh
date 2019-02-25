@@ -1,55 +1,58 @@
 #!/bin/bash
+
 sudo yum -y update
+
 #PHP
-sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-sudo yum -y install http://rpms.remirepo.net/enterprise/remi-release-7.rpm
-sudo yum -y install yum-utils
-sudo yum-config-manager --enable remi-php70
-sudo yum -y install php php-mcrypt php-cli php-gd php-curl php-mysql php-ldap php-zip php-fileinfo php-xml php-intl php-mbstring php-xmlrpc php-soap
-sudo systemctl restart httpd.service
+if command -v php 2>/dev/null; then
+  echo "PHP is already installed."
+else
+  sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+  sudo yum -y install http://rpms.remirepo.net/enterprise/remi-release-7.rpm
+  sudo yum -y install yum-utils
+  sudo yum-config-manager --enable remi-php70
+  sudo yum -y install php php-mcrypt php-cli php-gd php-curl php-mysql php-ldap php-zip php-fileinfo php-xml php-intl php-mbstring php-xmlrpc php-soap
+fi
 
-# Apach
-sudo yum -y install httpd
-sudo systemctl enable httpd
-sudo systemctl start httpd
-sudo sed -i 's%DocumentRoot "/var/www/html/"%DocumentRoot "/var/www/html/moodle"%g' "/etc/httpd/conf/httpd.conf"
-sudo systemctl restart httpd
+#Apache
+if command -v httpd 2>/dev/null; then
+  echo "Apache is already installed."
+else
+  sudo yum -y install httpd
+  sudo systemctl start httpd
+  sudo systemctl enable httpd
+fi
 
+#Mariadb
+if command -v mysql 2>/dev/null; then
+  echo "Mariadb is already installed."
+else
+  sudo yum -y install mariadb-server
+  sudo systemctl start mariadb
+  sudo systemctl enable mariadb
+fi
 
-# Mariadb
-sudo yum -y install mariadb-server
-sudo systemctl start mariadb
-sudo systemctl enable mariadb
-echo "[client]">>/etc/my.cnf.d/server.cnf
-echo "default-character-set = utf8mb4">>/etc/my.cnf.d/server.cnf
-echo "">>/etc/my.cnf.d/server.cnf
-echo "[mysqld]">>/etc/my.cnf.d/server.cnf
-echo "innodb_file_format = Barracuda">>/etc/my.cnf.d/server.cnf
-echo "innodb_file_per_table = 1">>/etc/my.cnf.d/server.cnf
-echo "innodb_large_prefix">>/etc/my.cnf.d/server.cnf
-echo "">>/etc/my.cnf.d/server.cnf
-echo "character-set-server = utf8mb4">>/etc/my.cnf.d/server.cnf
-echo "collation-server = utf8mb4_unicode_ci">>/etc/my.cnf.d/server.cnf
-echo "skip-character-set-client-handshake">>/etc/my.cnf.d/server.cnf
-echo "">>/etc/my.cnf.d/server.cnf
-echo "[mysql]">>/etc/my.cnf.d/server.cnf
-echo "default-character-set = utf8mb4">>/etc/my.cnf.d/server.cnf
-systemctl restart mariadb
-
-#Create base Moodle
-mysql -u root -p
-create database moodle;
-grant all privileges on moodle.* to 'admin'@'localhost' identified by 'password';
-quit
+  #Create base Moodle
+RESULT=`mysqlshow --user=moodleUser --password=moodlePassword moodle| grep -v Wildcard | grep -o moodle`
+if [ "$RESULT" == "moodle" ]; then
+    echo "User moodle database is already created."
+else
+  sudo mysql -e "SET GLOBAL character_set_server = 'utf8mb4';"
+  sudo mysql -e "SET GLOBAL innodb_file_format = 'BARRACUDA';"
+  sudo mysql -e "SET GLOBAL innodb_large_prefix = 'ON';"
+  sudo mysql -e "SET GLOBAL innodb_file_per_table = 'ON';"
+  sudo mysql -e "CREATE DATABASE moodle;"
+  sudo mysql -e "CREATE USER 'moodleUser'@'localhost' IDENTIFIED BY 'moodlePassword';"
+  sudo mysql -e "GRANT ALL PRIVILEGES ON moodle.* TO 'moodleUser'@'localhost';"
+  sudo mysql -e "FLUSH PRIVILEGES;"
+fi
 
 #Moodle
-sudo yum -y install wget
-wget https://download.moodle.org/stable36/moodle-latest-36.tgz
-sudo mkdir /var/moodledata
+curl https://download.moodle.org/download.php/direct/stable36/moodle-latest-36.tgz -o moodle-latest-36.tgz -s
+sudo tar -xzf moodle-latest-36.tgz -C /var/www/html/
+
+sudo /usr/bin/php /var/www/html/moodle/admin/cli/install.php --chmod=2770  --lang=uk  --dbtype=mariadb  --wwwroot=http://192.168.56.198/moodle  --dataroot=/var/moodledata  --dbname="moodle"  --dbuser="moodleUser"  --dbpass="moodlePassword"  --dbport=3306  --fullname=Moodle  --shortname=moodle  --summary=Moodle  --adminpass=Admin1  --non-interactive  --agree-license
+sudo chmod o+r /var/www/html/moodle/config.php
 sudo chcon -R -t httpd_sys_rw_content_t /var/moodledata
 sudo chown -R apache:apache /var/moodledata
-tar xvzf moodle-latest-36.tgz -C /var/www/html/
-chown -R apache:apache /var/www/
-systemctl restart httpd.service
-
-
+sudo chown -R apache:apache /var/www/
+sudo systemctl restart httpd
