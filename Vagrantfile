@@ -5,6 +5,10 @@
 # configures the configuration version (we support older styles for
 # backwards compatibility). Please don't change it unless you know what
 # you're doing.
+
+BOX_IMAGE = "centos/7"
+NODE_COUNT = 1
+
 Vagrant.configure("2") do |config|
   # The most common configuration options are documented and commented below.
   # For a complete reference, please see the online documentation at
@@ -12,7 +16,7 @@ Vagrant.configure("2") do |config|
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
-  config.vm.box = "centos/7"
+  #config.vm.box = "centos/7"
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -29,11 +33,11 @@ Vagrant.configure("2") do |config|
   # Create a forwarded port mapping which allows access to a specific port
   # within the machine from a port on the host machine and only allow access
   # via 127.0.0.1 to disable public access
-  config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
+  #config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
 
   # Create a private network, which allows host-only access to the machine
   # using a specific IP.
-  config.vm.network "private_network", ip: "192.168.56.198"
+  #config.vm.network "private_network", ip: "192.168.56.198"
 
   # Create a public network, which generally matched to bridged network.
   # Bridged networks make the machine appear as another physical device on
@@ -55,7 +59,23 @@ Vagrant.configure("2") do |config|
   #   vb.gui = true
   #
   #   # Customize the amount of memory on the VM:
-     vb.memory = "2024"
+     vb.memory = "512"
+  end
+
+  config.vm.define "dataBaseMoodle" do |subconfig|
+    subconfig.vm.box = BOX_IMAGE
+    subconfig.vm.hostname = "dataBaseMoodle"
+    subconfig.vm.network :private_network, ip: "192.168.56.20"
+    config.vm.provision "shell", path: "scenarioDatabase.sh"
+  end
+
+  (1..NODE_COUNT).each do |i|
+    config.vm.define "webServer#{i}" do |subconfig|
+      subconfig.vm.box = BOX_IMAGE
+      subconfig.vm.hostname = "webServer#{i}"
+      subconfig.vm.network :private_network, ip: "192.168.56.#{i + 10}"
+      config.vm.provision "shell", path: "scenarioWebserver.sh"
+    end
   end
   #
   # View the documentation for the provider you are using for more
@@ -64,5 +84,5 @@ Vagrant.configure("2") do |config|
   # Enable provisioning with a shell script. Additional provisioners such as
   # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
   # documentation for more information about their specific syntax and use.
-  config.vm.provision "shell", path: "scenario.sh"
+  #config.vm.provision "shell", path: "scenario.sh"
 end
