@@ -52,7 +52,7 @@ defaults
 #---------------------------------------------------------------------
 # main frontend which proxys to the backends
 #---------------------------------------------------------------------
-frontend  main *:80
+frontend  main 192.168.56.10:80
     acl url_static       path_beg       -i /static /images /javascript /stylesheets
     acl url_static       path_end       -i .jpg .gif .png .css .js
     use_backend static          if url_static

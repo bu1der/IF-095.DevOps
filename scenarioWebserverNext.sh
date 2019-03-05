@@ -5,7 +5,7 @@ PASSWDDB="moodlepassword"
 WWWHOST="192.168.56.12"
 BASEHOST="192.168.56.20"
 
-# sudo yum -y update
+sudo yum -y update
 
 #PHP
 sudo yum -y install http://rpms.remirepo.net/enterprise/remi-release-7.rpm
@@ -69,12 +69,63 @@ server {
     }
 }
 EOF
+sudo rm /etc/nginx/nginx.conf
+REMOTE_ADDR='$remote_addr'
+REMOTE_USER='$remote_user'
+TIME='$time_local'
+REQUEST='$request'
+STATUS='$status'
+BODY='$body'
+REFERER='$http_referer'
+AGENT='$http_user_agent'
+FORWARDED='$http_x_forwarded_for'
+cat <<EOF | sudo tee -a /etc/nginx/nginx.conf
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log;
+pid /run/nginx.pid;
+include /usr/share/nginx/modules/*.conf;
+events {
+    worker_connections 1024;
+}
+http {
+    log_format  main  '$REMOTE_ADDR - $REMOTE_USER [$TIME] "$REQUEST" '
+                      '$STATUS $BODY_bytes_sent "$REFERER" '
+                      '"$AGENT" "$FORWARDED"';
+    access_log  /var/log/nginx/access.log  main;
+    sendfile            on;
+    tcp_nopush          on;
+    tcp_nodelay         on;
+    keepalive_timeout   65;
+    types_hash_max_size 2048;
+    include             /etc/nginx/mime.types;
+    default_type        application/octet-stream;
+    include /etc/nginx/conf.d/*.conf;
+    server {
+        listen       80;
+        server_name  _;
+        root         /usr/share/nginx/html;
+        # Load configuration files for the default server block.
+        include /etc/nginx/default.d/*.conf;
+        location / {
+        }
+        error_page 404 /404.html;
+            location = /40x.html {
+        }
+        error_page 500 502 503 504 /50x.html;
+            location = /50x.html {
+                        }
+    }
+}
+EOF
 sudo nginx -t
 sudo systemctl restart nginx
 sudo chcon -R -t httpd_sys_rw_content_t /var/moodledata
 sudo setsebool httpd_can_network_connect true
 
+#Install App
 sudo /usr/bin/php /var/www/moodle/admin/cli/install.php --chmod=2770 \
+ --skip-database \
  --lang=uk \
  --dbtype=pgsql \
  --wwwroot=http://$WWWHOST/ \
@@ -96,9 +147,4 @@ sudo chown -R nginx:nginx /var/moodledata
 sudo chown -R nginx:nginx /var/www/moodle
 sudo systemctl restart nginx
 
-# sudo systemctl start firewalld.service
-# sudo firewall-cmd --permanent --zone=public --add-rich-rule='
-#   rule family="ipv4"
-#   source address="192.168.56.20"
-#   port protocol="tcp" port="80" accept'
-# sudo firewall-cmd --reload
+

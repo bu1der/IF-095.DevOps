@@ -2,6 +2,8 @@
 MAINDB="moodledatabase"
 USERDB="moodleuser"
 PASSWDDB="moodlepassword"
+WWWHOST11="192.168.56.11"
+WWWHOST12="192.168.56.12"
 
 # sudo yum -y update
 
@@ -20,22 +22,21 @@ sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${MAINDB} to ${USERDB
 sudo sed -i -e "s/#listen_addresses = 'localhost'/listen_addresses = '*'/g" /var/lib/pgsql/11/data/postgresql.conf
 sudo sed -i -e "s/#port = 5432/port = 5432/g" /var/lib/pgsql/11/data/postgresql.conf
 sudo cat <<EOF | sudo tee -a /var/lib/pgsql/11/data/pg_hba.conf
-host    all             all              192.168.56.11/32        password
-host    all             all              192.168.56.12/32        password
+host    all             all              ${WWWHOST11}/32        password
+host    all             all              ${WWWHOST12}/32        password
 EOF
 
 sudo systemctl restart postgresql-11
 
-# sudo systemctl start firewalld.service
-# sudo firewall-cmd --permanent --zone=public --add-rich-rule='
-#    rule family="ipv4"
-#    source address="192.168.56.11/32"
-#    port protocol="tcp" port="5432" accept'
-# sudo firewall-cmd --permanent --zone=public --add-rich-rule='
-#    rule family="ipv4"
-#    source address="192.168.56.12/32"
-#    port protocol="tcp" port="5432" accept'
-# sudo firewall-cmd --reload
-
+sudo systemctl start firewalld.service
+sudo firewall-cmd --permanent --zone=public --add-rich-rule='
+   rule family="ipv4"
+   source address="192.168.56.11/32"
+   port protocol="tcp" port="5432" accept'
+sudo firewall-cmd --permanent --zone=public --add-rich-rule='
+   rule family="ipv4"
+   source address="192.168.56.12/32"
+   port protocol="tcp" port="5432" accept'
+sudo firewall-cmd --reload
 
 

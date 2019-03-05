@@ -86,7 +86,7 @@ Vagrant.configure("2") do |config|
   config.vm.define "loadBalancer" do |loadBalancer|
     loadBalancer.vm.box = BOX_IMAGE
     loadBalancer.vm.hostname = "loadBalancer"
-    loadBalancer.vm.network :forwarded_port, guest: 80, host: 8080
+    #loadBalancer.vm.network :forwarded_port, guest: 80, host: 8080
     loadBalancer.vm.network :private_network, ip: "192.168.56.10"
     loadBalancer.vm.provision "shell", path: "scenarioLoadBalancer.sh"
   end
