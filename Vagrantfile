@@ -7,7 +7,8 @@
 # you're doing.
 
 BOX_IMAGE = "centos/7"
-NODE_COUNT = 1
+NODE_COUNT = 2
+NETWORK="192.168.56."
 
 Vagrant.configure("2") do |config|
   # The most common configuration options are documented and commented below.
@@ -62,20 +63,32 @@ Vagrant.configure("2") do |config|
      vb.memory = "512"
   end
 
-  config.vm.define "dataBaseMoodle" do |subconfig|
-    subconfig.vm.box = BOX_IMAGE
-    subconfig.vm.hostname = "dataBaseMoodle"
-    subconfig.vm.network :private_network, ip: "192.168.56.20"
-    config.vm.provision "shell", path: "scenarioDatabase.sh"
+  config.vm.define "dataBaseMoodle" do |dataBaseMoodle|
+    dataBaseMoodle.vm.box = BOX_IMAGE
+    dataBaseMoodle.vm.hostname = "dataBaseMoodle"
+    dataBaseMoodle.vm.network :private_network, ip: "192.168.56.20"
+    dataBaseMoodle.vm.provision "shell", path: "scenarioDatabase.sh"
   end
 
   (1..NODE_COUNT).each do |i|
-    config.vm.define "webServer#{i}" do |subconfig|
-      subconfig.vm.box = BOX_IMAGE
-      subconfig.vm.hostname = "webServer#{i}"
-      subconfig.vm.network :private_network, ip: "192.168.56.#{i + 10}"
-      config.vm.provision "shell", path: "scenarioWebserver.sh"
+    config.vm.define "webServer#{i}" do |webServer|
+      webServer.vm.box = BOX_IMAGE
+      webServer.vm.hostname = "webServer#{i}"
+      webServer.vm.network :private_network, ip: "#{NETWORK}"+"#{i + 10}"
+      if i==1
+        webServer.vm.provision "shell", path: "scenarioWebserverOne.sh"
+      else
+        webServer.vm.provision "shell", path: "scenarioWebserverNext.sh"
+      end
     end
+  end
+
+  config.vm.define "loadBalancer" do |loadBalancer|
+    loadBalancer.vm.box = BOX_IMAGE
+    loadBalancer.vm.hostname = "loadBalancer"
+    loadBalancer.vm.network :forwarded_port, guest: 80, host: 8080
+    loadBalancer.vm.network :private_network, ip: "192.168.56.10"
+    loadBalancer.vm.provision "shell", path: "scenarioLoadBalancer.sh"
   end
   #
   # View the documentation for the provider you are using for more
